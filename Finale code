@@ -1,1 +1,13 @@
-#test
+1. Data exploration
+
+#Dataset inladen
+```{r setup, include=FALSE}
+#install.packages("tidyverse")
+library(tidyverse)
+```
+```{r}
+getwd()
+genera_counts <- read_tsv("~/BIOMED/MJ1/Large scale analysis/Data project/genera.counts.tsv")
+metadata <- read_tsv("~/BIOMED/MJ1/Large scale analysis/Data project/metadata.tsv")
+```
+
