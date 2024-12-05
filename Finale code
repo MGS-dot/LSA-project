@@ -1,6 +1,5 @@
 1. Data exploration
 
-#Dataset inladen
 ```{r setup, include=FALSE}
 #install.packages("tidyverse")
 library(tidyverse)
@@ -11,4 +10,11 @@ genera_counts <- read_tsv("~/BIOMED/MJ1/Large scale analysis/Data project/genera
 metadata <- read_tsv("~/BIOMED/MJ1/Large scale analysis/Data project/metadata.tsv")
 ```
 
-test
+```{r}
+head(genera_counts) #eerste paar rijen bekijken
+head(metadata) #eerste paar rijen bekijken
+dim(genera_counts) #dimensies bekijken (aantal rijen en kolommen)
+dim(metadata)
+colnames(genera_counts) #kolomnamen bekijken
+colnames(metadata)
+```
