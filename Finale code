@@ -1,20 +1,43 @@
-1. Data exploration
+1. Dataset inladen
 
 ```{r setup, include=FALSE}
-#install.packages("tidyverse")
 library(tidyverse)
 ```
 ```{r}
 getwd()
-genera_counts <- read_tsv("~/BIOMED/MJ1/Large scale analysis/Data project/genera.counts.tsv")
-metadata <- read_tsv("~/BIOMED/MJ1/Large scale analysis/Data project/metadata.tsv")
+genera_counts <- read_tsv(".../Data project/genera.counts.tsv")
+metadata <- read_tsv(".../Data project/metadata.tsv")
 ```
+
+2. Data exploration 
 
 ```{r}
 head(genera_counts) #eerste paar rijen bekijken
-head(metadata) #eerste paar rijen bekijken
+head(metadata)
 dim(genera_counts) #dimensies bekijken (aantal rijen en kolommen)
 dim(metadata)
 colnames(genera_counts) #kolomnamen bekijken
 colnames(metadata)
 ```
+-> Door de dimensies te bekijken, zien we dat er 9695 kolommen zijn in de genera counts dataset. 
+
+```{r}
+summary(genera_counts) #samenvatting vd dataset
+summary(metadata)
+```
+-> De samenvatting van genera counts levert geen nuttige informatie op. Die van de metadata daarentegen wel.
+
+```{r}
+install.packages("skimr")
+library(skimr)
+#meer gedetailleerde samenvatting van de dataset
+skim(genera_counts) #Aangezien deze dataset veel kolommen heeft, is dit misschien niet zo handig om te doen.
+skim(metadata)
+```
+```{r}
+str(genera_counts) #structuur en datatypes vd dataset bekijken
+```
+```{r}
+str(metadata)
+```
+-> kijken of de datatypes gepast zijn en of we ze moeten aanpassen (of is dit pas nodig na selectie van de nuttige variabelen?)
