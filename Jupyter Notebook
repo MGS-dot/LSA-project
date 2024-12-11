@@ -1,12 +1,43 @@
-# Machine learning
+# Applying machine learning models to predict disease groups (CD, UC, nonIBD) as the target variable (Y), using bacterial counts (X) as input features.
 
 import pandas as pd
 
-# Load in the two given datasets
+# Load in the two given datasets as dataframes
 genera_counts = pd.read_csv('/kaggle/input/project-lsa/genera.counts.tsv', sep = '\t')
 genera_counts.head()
 metadata = pd.read_csv('/kaggle/input/project-lsa/metadata.tsv', sep = '\t')
 metadata.head()
+
+# New dataframe (X) that contains the genera_counts dataframe without the "Sample" column.
+X = genera_counts.iloc[:,1:] 
+X.head()
+
+# "Study.Group" is the only relevant column in the dataframe metadata. Make a variable "Study_group" that contains a Series.
+Study_group = metadata['Study.Group']
+Study_group
+#Look at de distribution in the three study groups. Are they evenly distributed?
+import numpy as np
+unique, counts = np.unique(Study_group, return_counts=True) # Gebruik numpy om de unieke waarden en hun tellen te krijgen
+value_counts = dict(zip(unique, counts))
+print(value_counts)
+#visualize the distributions
+import seaborn as sns
+import matplotlib.pyplot as plt
+sns.countplot(x=Study_group) 
+plt.title('Distribution of disease groups')
+plt.xlabel('Study Group')
+plt.ylabel('Number of samples')
+plt.show()
+# The distributions across the groups are relatively balanced. There are slightly more samples in the 'CD' group, while the number of samples in the 'UC' and 'nonIBD' groups are nearly identical.
+
+#Scikit-learn will be used for the machine learning models, this requires all input variables to be in numeric format. ['CD' = 0, 'UC' = 1, 'nonIBD' = 2]
+from sklearn.preprocessing import LabelEncoder
+encoder = LabelEncoder()
+y = encoder.fit_transform(Study_group)
+print(y)  
+print('mapping:', encoder.classes_)
+
+
 
 # 1) Logistic regression model
 
