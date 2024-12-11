@@ -1,1 +1,12 @@
+# Machine learning
+
+import pandas as pd
+
+# Load in the two given datasets
+genera_counts = pd.read_csv('/kaggle/input/project-lsa/genera.counts.tsv', sep = '\t')
+genera_counts.head()
+metadata = pd.read_csv('/kaggle/input/project-lsa/metadata.tsv', sep = '\t')
+metadata.head()
+
+# 1) Logistic regression model
 
