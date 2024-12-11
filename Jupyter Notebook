@@ -1,57 +1,71 @@
 # Applying machine learning models to predict disease groups (CD, UC, nonIBD) as the target variable (Y), using bacterial counts (X) as input features.
 
-import pandas as pd
+    import pandas as pd
 
 # Load in the two given datasets as dataframes
-genera_counts = pd.read_csv('/kaggle/input/project-lsa/genera.counts.tsv', sep = '\t')
-genera_counts.head()
-metadata = pd.read_csv('/kaggle/input/project-lsa/metadata.tsv', sep = '\t')
-metadata.head()
+    genera_counts = pd.read_csv('/kaggle/input/project-lsa/genera.counts.tsv', sep = '\t')
+    genera_counts.head()
+    metadata = pd.read_csv('/kaggle/input/project-lsa/metadata.tsv', sep = '\t')
+    metadata.head()
 
 # New dataframe (X) that contains the genera_counts dataframe without the "Sample" column.
-X = genera_counts.iloc[:,1:] 
-X.head()
+    X = genera_counts.iloc[:,1:] 
+    X.head()
 
 # "Study.Group" is the only relevant column in the dataframe metadata. Make a variable "Study_group" that contains a Series.
-Study_group = metadata['Study.Group']
-Study_group
+    Study_group = metadata['Study.Group']
+    Study_group
 #Look at de distribution in the three study groups. Are they evenly distributed?
-import numpy as np
-unique, counts = np.unique(Study_group, return_counts=True) # Gebruik numpy om de unieke waarden en hun tellen te krijgen
-value_counts = dict(zip(unique, counts))
-print(value_counts)
+    import numpy as np
+    unique, counts = np.unique(Study_group, return_counts=True) 
+    value_counts = dict(zip(unique, counts))
+    print(value_counts)
 #visualize the distributions
-import seaborn as sns
-import matplotlib.pyplot as plt
-sns.countplot(x=Study_group) 
-plt.title('Distribution of disease groups')
-plt.xlabel('Study Group')
-plt.ylabel('Number of samples')
-plt.show()
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+    sns.countplot(x=Study_group) 
+    plt.title('Distribution of disease groups')
+    plt.xlabel('Study Group')
+    plt.ylabel('Number of samples')
+    plt.show()
 # The distributions across the groups are relatively balanced. There are slightly more samples in the 'CD' group, while the number of samples in the 'UC' and 'nonIBD' groups are nearly identical.
 
 #Scikit-learn will be used for the machine learning models, this requires all input variables to be in numeric format. ['CD' = 0, 'UC' = 1, 'nonIBD' = 2]
-from sklearn.preprocessing import LabelEncoder
-encoder = LabelEncoder()
-y = encoder.fit_transform(Study_group)
-print(y)  
-print('mapping:', encoder.classes_)
+    from sklearn.preprocessing import LabelEncoder
+    encoder = LabelEncoder()
+    y = encoder.fit_transform(Study_group)
+    print(y)  
+    print('mapping:', encoder.classes_)
 
 # Check which bacteria (features) rarely or don't appear in the samples (many zeros) and can be useful in determining whether certain features provide too little or no information for further analysis.
-stats_summary = pd.DataFrame({
-    'mean': X.mean(),
-    'median': X.median(),
-    'std': X.std(),
-    'percentage_zeros': (X == 0).mean() * 100})
-print(stats_summary.sort_values(by='percentage_zeros', ascending=False).head(50))  #View the top-50 features with the most zeros.
+    stats_summary = pd.DataFrame({
+        'mean': X.mean(),
+        'median': X.median(),
+        'std': X.std(),
+        'percentage_zeros': (X == 0).mean() * 100})
+    print(stats_summary.sort_values(by='percentage_zeros', ascending=False).head(50))  #View the top-50 features with the most zeros.
 #The features with 100% zero values (13 columns) can be deleted because it will not help determine to which study group the sample belongs to.
 # Identify columns with 100% zeros
-columns_to_remove = stats_summary[stats_summary['percentage_zeros'] == 100].index
+    columns_to_remove = stats_summary[stats_summary['percentage_zeros'] == 100].index
 # Remove these columns from the original dataset X
-X = X.drop(columns=columns_to_remove)
-X.describe()
+    X = X.drop(columns=columns_to_remove)
+    X.describe()
 
+# Split data into training and validation data, for both features and target. The split is based on a random number generator. Supplying a numeric value to the random_state argument guarantees we get the same split every time.
+    from sklearn.model_selection import train_test_split
+    train_X, test_X, train_y, test_y = train_test_split(X, y, random_state = 1)
 
+# Check the distribution in the different study groups in train_y.
+    unique, counts = np.unique(train_y, return_counts=True)
+    value_counts = dict(zip(unique, counts))
+    print(value_counts)
+# Visualize the distribution.
+    sns.countplot(x=train_y)
+    plt.title('Distribution of disease groups in the training data')
+    plt.xlabel('Study Group')
+    plt.ylabel('Number of samples')
+    plt.show()
+# The distributions across the groups are still relatively balanced.
 
 
 # 1) Logistic regression model
