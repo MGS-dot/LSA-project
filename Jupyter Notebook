@@ -37,6 +37,21 @@ y = encoder.fit_transform(Study_group)
 print(y)  
 print('mapping:', encoder.classes_)
 
+# Check which bacteria (features) rarely or don't appear in the samples (many zeros) and can be useful in determining whether certain features provide too little or no information for further analysis.
+stats_summary = pd.DataFrame({
+    'mean': X.mean(),
+    'median': X.median(),
+    'std': X.std(),
+    'percentage_zeros': (X == 0).mean() * 100})
+print(stats_summary.sort_values(by='percentage_zeros', ascending=False).head(50))  #View the top-50 features with the most zeros.
+#The features with 100% zero values (13 columns) can be deleted because it will not help determine to which study group the sample belongs to.
+# Identify columns with 100% zeros
+columns_to_remove = stats_summary[stats_summary['percentage_zeros'] == 100].index
+# Remove these columns from the original dataset X
+X = X.drop(columns=columns_to_remove)
+X.describe()
+
+
 
 
 # 1) Logistic regression model
