@@ -58,7 +58,7 @@
     
 #Get a summary of descriptive statistics for the dataset train_X
     train_X.describe()
-# It can be seen that that there are columns where the maximum bacterial count equals zero.
+# It can be seen in the table above that that there are columns where the maximum bacterial count equals zero.
 # This means that the bacterium isn't detected in the samples present in the training dataframe.
 # Therefore, these features will not provide additional information for the model so they will be deleted.
 # The same columns deleted in the train dataset will be deleted in the test dataset.
@@ -72,7 +72,11 @@ test_X_filtered = test_X.drop(columns=columns_to_remove)
 
 print(f"Number of deleted columns: {len(columns_to_remove)}")
 print(f'Percentage of deleted columns: {(len(columns_to_remove)/9694)*100 : .2f}%')
-# Only 3.95
+# Only 3.95% of the columns were deleted.
+
+#Check the distribution in the different study groups in train_y
+
+
 
 
 
