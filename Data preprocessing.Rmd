@@ -1,3 +1,4 @@
+
 Chapter 1: Data exploration and preprocessing
 
 1.1) DATA EXPLORATION
@@ -359,3 +360,204 @@ diversity_df%>% ggplot(aes(x = Study.Group, y = diversity, fill = Study.Group)) 
   theme_classic() +
   ggtitle("Boxplot: Disease Status, Diversity")
 ```
+
+
+
+
+
+
+
+Chapter 2: testing a hypothesis with an univariate test. 
+
+To perform the Chi-squared test, a contingency_table needs to be constructed between the column 'most_abundant_phylum2' and the column 'Study.Group', both part of the dataframe 'most_abundant'
+
+```{r}
+contingency_table <- table(most_abundant$Most_abundant_phylum2, most_abundant$Study.Group)
+
+print(contingency_table)
+```
+
+One of the conditions of the Chi-square test of independence is that the expected frequency in each cell of the contingency table should be at least 5. This was calculated by using the contingency_table generated above.  
+
+```{r}
+row_totals <- rowSums(contingency_table)
+col_totals <- colSums(contingency_table)
+grand_total <- sum(contingency_table)
+
+expected <- outer(row_totals, col_totals) / grand_total
+
+print(expected)
+```
+
+To make the meaning of these values more clear, a dataframe containting the observed and expected frequencies was created.
+
+```{r}
+observed_df <- as.data.frame(as.table(contingency_table))
+expected_df <- as.data.frame(as.table(expected))
+
+df_observed_expected <- data.frame(
+  most_abundant_phylum = observed_df$Var1,
+  disease_status = observed_df$Var2,
+  observed = observed_df$Freq,
+  expected = expected_df$Freq
+)
+
+print(df_observed_expected)
+```
+
+There are no values smaller than 5 in the column 'expected', so the Chi-square test can be performed. 
+
+```{r}
+chi_square_result <- chisq.test(contingency_table)
+chi_square_result
+```
+
+To visualize the chi-square test, a bar chart was constructed. 
+
+```{r}
+library(ggplot2)
+ggplot(df_observed_expected, aes(x = interaction(most_abundant_phylum, disease_status), fill = disease_status)) +
+  geom_bar(aes(y = observed), stat = "identity", position = "dodge", color = "black") +
+  geom_point(aes(y = expected), position = position_dodge(width = 0.5), color = "yellow", size = 1.8) +
+  labs(title = "Observed (bars) vs expected (dots) frequencies",
+       x = "Most abundant phylum",
+       y = "Frequency",
+       fill = "Disease status") +
+  theme_dark() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+
+
+
+
+
+Chapter 3: Multivariate testing 
+
+Let's first load the tidyverse library as this will be needed for further visualisation.
+
+```{r}
+library(tidyverse)
+```
+
+During data exploration, a univariate Anova showed significant differences between the mean diversity across the study groups. 
+
+```{r}
+anova_diversity_group <- aov(diversity ~ Study.Group, data = merged_df)
+summary(anova_diversity_group)
+```
+
+This visualisation show this difference more clearly:
+
+```{r}
+anova_diversity_group %>%
+  ggplot(aes(x=Study.Group, y=diversity, fill=Study.Group))+
+  geom_boxplot()+
+  theme_classic()+
+  theme(axis.ticks.x = element_blank(), axis.line.x = element_blank(), legend.position = "none")
+```
+
+These findings spiked interest to investigate the predictive value of diversity on study group.
+Besides diversity, the independant variables fecalcal, consent_age and Weight_at_baseline were included in the model.
+
+The dependant variable (Study.Group) is nominal, categorical, and consists of three classes, and as multiple independent variables are included, a multinomial multivariate regression analysis was performed.  
+In order to perform this analysis, installation of the nnet package is needed.
+
+```{r}
+install.packages("nnet")
+library(nnet)
+```
+
+Next, the multinomial multivariate regression model is calculated.
+
+```{r}
+mlm_Study.Group <- multinom(Study.Group ~ diversity + fecalcal + consent_age + Weight_at_baseline, data = merged_df)
+summary(mlm_Study.Group)
+```
+
+CD appears to be the baseline comparator in this model. Instead, let's set nonIBD as the baseline, as it provides a more logical reference point for comparing the effects of the independant variables.
+
+```{r}
+levels(merged_df$Study.Group)
+merged_df$Study.Group <-relevel(merged_df$Study.Group,ref = "nonIBD")
+levels(merged_df$Study.Group)
+```
+
+The multinomial multivariate regression model is calculated again with the adjusted baseline comparator. 
+
+```{r}
+mlm_Study.Group <- multinom(Study.Group ~ diversity + fecalcal + consent_age + Weight_at_baseline, data = merged_df)
+summary(mlm_Study.Group)
+```
+
+For interpretation of these coefficients, calculation of p-values is required. 
+For calculattion of the p-values, the corresponding z-values are needed first. 
+
+Calculation of the z-values:
+
+```{r}
+coef_matrix <- summary_mlm$coefficients
+coef_matrix
+se_matrix <- summary_mlm$standard.errors
+se_matrix
+z_values <- coef_matrix / se_matrix
+z-values
+```
+
+Calculation of the p-values:
+
+```{r}
+p_values <- 2 * (1 - pnorm(abs(z_values)))
+p_values
+```
+
+The p-values for the regression coefficient of fecalcal are significant for UC as well as for CD.
+With a significance level of 0.01, the null hypothesis can be rejected: fecalcal is linked to the probabilities of the different disease status categories.
+
+For better understanding of this significant p-value: a binary logistic regression model on fecalcal for UC versus healthy and CD versus healthy. For these two regression models, two new subset dataframes were created. In the first subset dataframe UC was removed for the column study group, leaving only CD and nonIBD. This step made sure a dichotomous single dependant variable was present for both regression models. 
+
+Creation of the subset dataframes:
+
+```{r}
+merged_df_subset_CD_nonIBD <- merged_df_subset_CD_nonIBD %>%
+  mutate(Study.Group = ifelse(Study.Group %in% c("CD"), 1, 0))
+
+merged_df_subset_UC_nonIBD <- merged_df_subset_UC_nonIBD %>%
+  mutate(Study.Group = ifelse(Study.Group %in% c("UC"), 1, 0))
+```
+
+Binomial regression model 1: the risk on Crohn Disease based on fecalcal value
+
+```{r}
+blm_fecalcal_1 <- glm(Study.Group ~ fecalcal, data=merged_df_subset_CD_nonIBD, family="binomial" )
+summary(blm_fecalcal_1)
+```
+
+Visualisation of binomial regression model 1: the risk on Crohn Disease based on fecalcal value
+
+```{r}
+plot_blm_1 <- ggplot(merged_df_subset_CD_nonIBD, aes(x = fecalcal, y = Study.Group)) +
+  geom_point() +
+  geom_smooth(method = "glm", col = "blue",method.args = list(family = "binomial")) +
+  labs(y = "Probability of Crohn Disease")
+plot_blm_1
+```
+
+Binomial regression model 2: the risk on Ulcerative Colitis based on fecalcal value
+
+```{r}
+blm_fecalcal_2 <- glm(Study.Group ~ fecalcal, data=merged_df_subset_UC_nonIBD, family="binomial" )
+summary(blm_fecalcal_2)
+```
+
+Visualisation of binomial regression model 1: the risk on Crohn Disease based on fecalcal value
+
+```{r}
+plot_blm_2<- ggplot(merged_df_subset_UC_nonIBD, aes(x = fecalcal, y = Study.Group)) +
+  geom_point() +
+  geom_smooth(method = "glm", col = "blue",method.args = list(family = "binomial")) + labs(y = "Probability of Ulcerative Colitis")
+plot_blm_2
+```
+
