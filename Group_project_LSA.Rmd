@@ -1,0 +1,566 @@
+
+Chapter 1: Data exploration and preprocessing
+
+1.1) DATA EXPLORATION
+
+Read the two datasets
+
+```{r}
+
+library(readr)
+data <- read_tsv("~/Documents/R/Group\ project/metadata.tsv")
+
+library(readr)
+bact <- read_tsv("~/Documents/R/Group\ project/genera.counts.tsv")
+```
+
+Install ggplot2 and tidyverse
+
+```{r}
+library(ggplot2)
+library(dplyr) 
+```
+
+First exploration of the data: with 'head()' the first couple of rows are visible, with 'dim()' the number of rows and columns are shown and 'colnames()' shows the names of the columns. 'Summary()' gives a summary of the dataset. 
+
+```{r}
+head(bact) 
+head(data)
+dim(bact) 
+dim(data)
+colnames(data)
+summary(bact) 
+summary(data)
+```
+
+It is striking that the 'bact' data consists of 9695 columns. The summary of bact does not provide useful information. However, the summary of the 'data' does. 
+By using 'skimr' a more detailed summary of the dataset 'data' can be generated. 
+
+```{r}
+library(skimr)
+skim(data)
+```
+
+**data types**
+What are the data types?
+
+```{r}
+str(data)
+```
+
+It would be better if some columns in the dataset 'data' changed from data type 'character' to 'factor'.
+
+```{r}
+data <- data %>% mutate(Study.Group = factor(Study.Group))
+data <- data %>% mutate(Gender = factor(Gender))
+data <- data %>% mutate(site_name = factor(site_name))
+data <- data %>% mutate(race = factor(race))
+data <- data %>% mutate(Antibiotics = factor(Antibiotics))
+data <- data %>% mutate(`smoking status` = factor(`smoking status`))
+```
+
+Checking if the data types are correctly changed.
+
+```{r}
+str(data)
+```
+
+**duplicated data**
+Are there duplications in the rows of the dataframes? 
+
+```{r}
+duplicated_rownames <- duplicated(data)
+true_values0 <- which(duplicated_rownames)
+true_values0
+
+duplicated_rownames2 <- duplicated(bact)
+true_values02 <- which(duplicated_rownames2)
+true_values02
+```
+
+This results in 'integer(0)', which means there are no duplications in the rows of the datasets.
+
+Are there duplications in the columns of the dataframes? 
+
+```{r}
+duplicated_colnames <- duplicated(colnames(data)) 
+true_values1 <- which(duplicated_colnames)
+true_values1
+
+duplicated_colnames2 <- duplicated(colnames(bact)) 
+true_values12 <- which(duplicated_colnames2)
+true_values12
+```
+
+This results in 'integer(0)', which means there are no duplications in the columns of the datasets. 
+
+**usefullness of columns**
+Based on visual inspection of the dataset 'data', suspicion arises that the colums 'Dataset', 'DOI', 'Publication.name' and 'Age.Units' only have 1 value across all the rows. This was verified using the following code.
+
+```{r}
+unique(data$Dataset)
+unique(data$DOI)
+unique(data$Publication.Name)
+unique(data$Age.Units)
+```
+
+Indeed, these columns have the same value across all the rows. Therefore, these columns were deleted.
+
+```{r}
+data <- data %>% select(-c(Dataset, DOI,Publication.Name,Age.Units))
+head(data)
+```
+
+After visually inspecting the dataset of the bacteria, it was seen that some of the columns seemingly only consist of the value '0'. Since these column don't give much information, it was decided to remove them. 
+
+```{r}
+columns_to_remove <- colnames(bact)[colSums(bact == 0) == nrow(bact)]
+print(columns_to_remove)
+bact_filtered <- bact[, !(colnames(bact) %in% columns_to_remove)]
+```
+
+13 columns were removed from the original 'bact' dataframe. The new dataframe without these columns is called bact_filtered. 
+
+**NA values**
+Are there still NA values in the datasets? As there are more than 9000 columns in the dataframe bact_filtered, we use an alternative approach.
+
+```{r}
+NA_colums_bact <- colnames(bact_filtered)[colSums(is.na(bact_filtered)) > 0]
+print(NA_colums_bact)
+colSums(is.na(data))
+```
+
+No missing values are present in the 'bact_filtered' dataset. In the 'data' dataset some columns have a lot of NA values. More precisely the columns 'Age at diagnosis', 'smoking status', 'BMI_at_baseline', 'Height_at_baseline', 'Weight_at_baseline' and 'fecalcal'.
+
+
+------------------------------------------------------------------------------
+
+1.2) DATA VISUALISATION
+
+Making plots for visual inspection of the data.
+
+Is there a visual correlation between the age of the patient and the disease status?
+
+```{r}
+ggplot(data, aes(x = Study.Group, y = consent_age)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "Boxplot: disease status and age", x = "disease statys", y = "age") +
+  theme_minimal()
+```
+
+Is there a visual correlation between the fecalcal of the patient and the disease status?
+
+```{r}
+ggplot(data, aes(x = Study.Group, y = fecalcal, fill = Study.Group)) + 
+  geom_boxplot() + 
+  geom_jitter() + 
+  theme_classic() +
+  ggtitle("Boxplot: Disease Status, fecalcal")
+```
+
+Is there a visual correlation between consent age, disease status and fecalcal?
+
+```{r}
+ggplot(data, aes(x = consent_age, y = fecalcal, color = Study.Group)) +
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", se = FALSE, color = "purple")+
+  labs(title = "Scatterplot: consent age, fecalcal, disease status", x = "consent age", y = "fecalcal") +
+  theme_minimal()
+```
+
+Upon visual inspection, there appears to be a higher fecalcal when the consent age is lower. It was decided to divide consent age in groups. 
+
+```{r}
+data <- data %>%
+  mutate(agegroup = case_when(
+    consent_age <= 18 ~ "0-18",        
+    consent_age <= 40 ~ "19-40",            
+    TRUE ~ "41+"                    
+  ))
+```
+
+Is there a more clear visual correlation between consent age, disease status and fecalcal if a boxplot instead of a scatterplot is used?
+
+```{r}
+ggplot(data, aes(x = agegroup, y = fecalcal)) +
+  geom_boxplot() +
+  geom_jitter(aes(color = Study.Group))+
+  labs(title = "Boxplot: consent age, fecalcal, disease status", x = "agegroup", y = "fecalcal") +
+  theme_minimal()
+```
+
+Is there a visual correlation between the smoking status of the patient, the fecalcal and the agegroup?
+
+```{r}
+ggplot(data, aes(x = `smoking status`, y = `fecalcal`)) +
+  geom_boxplot() +
+  geom_jitter(aes(color = agegroup))+
+  labs(title = "Boxplot: smoking status, fecalcal, agegroup", x = "roken", y = "fecalcal") +
+  theme_minimal()
+```
+
+Based on the big amount of NA in the smoking status, smoking will nog be integrated in a test. Maybe the disease status of the patient is in visual correlation with the gender and the agegroup. 
+
+```{r}
+ggplot(data, aes(x = agegroup, fill = Study.Group)) +
+  geom_bar(position = "stack") +
+  facet_wrap(~Gender) +
+  labs(
+    title = "Histogram: gender, agegroup, disease status",
+    x = "age group",
+    y = "number of patients",
+    fill = "disease status"
+  ) +
+  theme_minimal()
+```
+
+Is there a visual correlation between the age of the patient, the race and the hospital they went to?
+
+```{r}
+ggplot(data, aes(x = race, y = `Age at diagnosis`)) +
+  geom_boxplot() +
+  geom_jitter(aes(color = site_name))+
+  labs(title = "Boxplot: race, age, hospital", x = "race", y = "age") +
+  theme_minimal()
+```
+
+Almost all the patient with race 'Black or African American' were diagnosed at a young age. However, this is because all this data comes from a pediatric hospital and is thus not representative for all people of the race 'Black or African American'. 
+--------------------------------------------------------------------------------
+
+
+1.3) CREATING THE DATAFRAME MOST_ABUNDANT
+
+Creating a new dataframe containting the samples and their most abundant bacterium.
+
+```{r}
+most_abundant <- data.frame(
+  Sample = bact$Sample,
+  Most_abundant_bact = apply(bact[, -1], 1, function(row) {
+    colnames(bact)[-1][which.max(row)] 
+  })
+)
+```
+
+Add a new column with only the phylum to the most_abundant dataframe.
+
+```{r}   
+most_abundant$Most_abundant_phylum <- sapply(most_abundant$Most_abundant_bact, function(x) {
+  parts <- strsplit(x, ";")[[1]]  
+  second_name <- parts[2]         
+  return(second_name)
+})
+```
+
+How many ooptions are there for the most abundant phylum?
+
+```{r}
+unique_values <- table(most_abundant$Most_abundant_phylum)
+print(unique_values)
+```
+
+The vast majority of most abundant bacteria belong to the phylum of Bacteroidota. The other phyla will be combined under the name 'other phylum'.
+
+```{r}
+most_abundant$Most_abundant_phylum2 <- ifelse(
+  grepl("p__Firmicutes|p__Proteobacteria|p__Verrucomicrobiota", most_abundant$Most_abundant_phylum), 
+  "other phylum",                                    
+  most_abundant$Most_abundant_phylum                       
+)
+```
+
+Did this work? 
+
+```{r}
+unique_values_2 <- table(most_abundant$Most_abundant_phylum2)
+print(unique_values_2)
+```
+
+To be able to construct a test with this dataprame, it would be handy to have the column with the disease status of te patient added to this newly generated dataframe 'most_abundant'.
+
+```{r}
+most_abundant <- merge(most_abundant, data[, c("Sample", "Study.Group")], by = "Sample", all.x = TRUE)
+```
+
+Did this work?
+
+```{r}
+head(most_abundant)
+```
+
+This table is ready for testing. 
+
+-----------------------------------------------------------------------------------------
+
+
+1.4) CREATING THE NEW DATAFRAME DIVERSITY_DF
+
+Calculating the number of different bacteria in each sample.
+
+```{r}
+diversity <- rowSums(bact_filtered != 0)
+print(diversity)
+```
+
+These data were added to the bact_filtered dataset in the column 'diversity'
+
+```{r}
+bact_filtered$diversity <- diversity
+```
+
+A new dataframe 'diversity_df' was created, consisting of the columns 'diversity' and 'Sample'.
+
+```{r}
+diversity_df <- bact_filtered %>%
+  select(Sample, diversity)
+diversity_df
+```
+
+The column 'Study.Group', 'consent_age', 'Weight_at_baseline', 'fecalcal' from the 'data' dataset was merged into the new dataframe 'diversity_df'. 
+
+```{r}
+diversity_df <- diversity_df %>%
+  inner_join(data %>% select(Sample, Study.Group, consent_age, Weight_at_baseline, fecalcal), by = "Sample")
+diversity_df
+```
+
+Checking if this newly generated column diversity is normally distributed. Firstly, this was checked with a QQplot.
+
+```{r}
+library(ggpubr)
+ggqqplot(diversity_df$diversity)+ 
+  ggtitle("Diversity") 
+```
+
+Normal distribution was also tested with a histogram.
+
+```{r}
+bw <- 50
+ggplot(bact_filtered, aes(x = diversity))+ 
+  geom_histogram(binwidth = bw, fill = "lightgrey")+
+  stat_function(fun = function(x){dnorm(x, mean = mean(diversity_df$diversity),
+    sd = sd(diversity_df$diversity))* bw * length(diversity_df$diversity)}, 
+    color = "Blue",size = 1)+
+  theme_classic()+
+  ggtitle("Diversity")
+```
+
+Both visualisation ways show that the diversity is normally distributed.
+
+Visualisation of the diversity and the study group was done by the following code. 
+
+```{r}
+diversity_df%>% ggplot(aes(x = Study.Group, y = diversity, fill = Study.Group)) + 
+  geom_boxplot() + 
+  geom_jitter() + 
+  theme_classic() +
+  ggtitle("Boxplot: Disease Status, Diversity")
+```
+
+
+
+
+
+
+
+Chapter 2: testing a hypothesis with an univariate test. 
+
+To perform the Chi-squared test, a contingency_table needs to be constructed between the column 'most_abundant_phylum2' and the column 'Study.Group', both part of the dataframe 'most_abundant'
+
+```{r}
+contingency_table <- table(most_abundant$Most_abundant_phylum2, most_abundant$Study.Group)
+
+print(contingency_table)
+```
+
+One of the conditions of the Chi-square test of independence is that the expected frequency in each cell of the contingency table should be at least 5. This was calculated by using the contingency_table generated above.  
+
+```{r}
+row_totals <- rowSums(contingency_table)
+col_totals <- colSums(contingency_table)
+grand_total <- sum(contingency_table)
+
+expected <- outer(row_totals, col_totals) / grand_total
+
+print(expected)
+```
+
+To make the meaning of these values more clear, a dataframe containting the observed and expected frequencies was created.
+
+```{r}
+observed_df <- as.data.frame(as.table(contingency_table))
+expected_df <- as.data.frame(as.table(expected))
+
+df_observed_expected <- data.frame(
+  most_abundant_phylum = observed_df$Var1,
+  disease_status = observed_df$Var2,
+  observed = observed_df$Freq,
+  expected = expected_df$Freq
+)
+
+print(df_observed_expected)
+```
+
+There are no values smaller than 5 in the column 'expected', so the Chi-square test can be performed. 
+
+```{r}
+chi_square_result <- chisq.test(contingency_table)
+chi_square_result
+```
+
+To visualize the chi-square test, a bar chart was constructed. 
+
+```{r}
+library(ggplot2)
+ggplot(df_observed_expected, aes(x = interaction(most_abundant_phylum, disease_status), fill = disease_status)) +
+  geom_bar(aes(y = observed), stat = "identity", position = "dodge", color = "black") +
+  geom_point(aes(y = expected), position = position_dodge(width = 0.5), color = "yellow", size = 1.8) +
+  labs(title = "Observed (bars) vs expected (dots) frequencies",
+       x = "Most abundant phylum",
+       y = "Frequency",
+       fill = "Disease status") +
+  theme_dark() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+
+
+
+
+
+Chapter 3: Multivariate testing 
+
+Let's first load the tidyverse library as this will be needed for further visualisation.
+
+```{r}
+library(tidyverse)
+```
+
+During data exploration, a univariate Anova showed significant differences between the mean diversity across the study groups. 
+
+```{r}
+anova_diversity_group <- aov(diversity ~ Study.Group, data = diversity_df)
+summary(anova_diversity_group)
+```
+
+This visualisation show this difference more clearly:
+
+```{r}
+anova_diversity_group %>%
+  ggplot(aes(x=Study.Group, y=diversity, fill=Study.Group))+
+  geom_boxplot()+
+  theme_classic()+
+  theme(axis.ticks.x = element_blank(), axis.line.x = element_blank(), legend.position = "none")
+```
+
+These findings spiked interest to investigate the predictive value of diversity on study group.
+Besides diversity, the independant variables fecalcal, consent_age and Weight_at_baseline were included in the model.
+
+The dependant variable (Study.Group) is nominal, categorical, and consists of three classes, and as multiple independent variables are included, a multinomial multivariate regression analysis was performed.  
+In order to perform this analysis, installation of the nnet package is needed.
+
+```{r}
+library(nnet)
+```
+
+Next, the multinomial multivariate regression model is calculated.
+
+```{r}
+mlm_Study.Group <- multinom(Study.Group ~ diversity + fecalcal + consent_age + Weight_at_baseline, data = diversity_df)
+summary(mlm_Study.Group)
+```
+
+CD appears to be the baseline comparator in this model. Instead, let's set nonIBD as the baseline, as it provides a more logical reference point for comparing the effects of the independant variables.
+
+```{r}
+levels(diversity_df$Study.Group)
+diversity_df$Study.Group <-relevel(diversity_df$Study.Group,ref = "nonIBD")
+levels(diversity_df$Study.Group)
+```
+
+The multinomial multivariate regression model is calculated again with the adjusted baseline comparator. 
+
+```{r}
+mlm_Study.Group <- multinom(Study.Group ~ diversity + fecalcal + consent_age + Weight_at_baseline, data = diversity_df)
+summary(mlm_Study.Group)
+```
+
+For interpretation of these coefficients, calculation of p-values is required. 
+For calculattion of the p-values, the corresponding z-values are needed first. 
+
+Calculation of the z-values:
+
+```{r}
+coef_matrix <- mlm_Study.Group$coefficients
+coef_matrix
+se_matrix <- mlm_Study.Group$standard.errors
+se_matrix
+z_values <- coef_matrix / se_matrix
+z_values
+```
+
+Calculation of the p-values:
+
+```{r}
+p_values <- 2 * (1 - pnorm(abs(z_values)))
+p_values
+```
+
+The p-values for the regression coefficient of fecalcal are significant for UC as well as for CD.
+With a significance level of 0.01, the null hypothesis can be rejected: fecalcal is linked to the probabilities of the different disease status categories.
+
+For better understanding of this significant p-value: a binary logistic regression model on fecalcal for UC versus healthy and CD versus healthy. For these two regression models, two new subset dataframes were created. In the first subset dataframe UC was removed for the column study group, leaving only CD and nonIBD. This step made sure a dichotomous single dependant variable was present for both regression models. 
+
+Creation of the subset dataframes:
+
+```{r}
+diversity_df_subset_CD_nonIBD <- subset(diversity_df, Study.Group %in% c("CD", "nonIBD"))
+diversity_df_subset_UC_nonIBD <- subset(diversity_df, Study.Group %in% c("UC", "nonIBD"))
+```
+
+Making the categories in this column binary
+
+```{r}
+diversity_df_subset_CD_nonIBD <- diversity_df_subset_CD_nonIBD %>%
+  mutate(Study.Group = ifelse(Study.Group %in% c("CD"), 1, 0))
+
+diversity_df_subset_UC_nonIBD <- diversity_df_subset_UC_nonIBD %>%
+  mutate(Study.Group = ifelse(Study.Group %in% c("UC"), 1, 0))
+```
+
+
+Binomial regression model 1: the risk on Crohn Disease based on fecalcal value
+
+```{r}
+blm_fecalcal_1 <- glm(Study.Group ~ fecalcal, data=diversity_df_subset_CD_nonIBD, family="binomial" )
+summary(blm_fecalcal_1)
+```
+
+Visualisation of binomial regression model 1: the risk on Crohn Disease based on fecalcal value
+
+```{r}
+plot_blm_1 <- ggplot(diversity_df_subset_CD_nonIBD, aes(x = fecalcal, y = Study.Group)) +
+  geom_point() +
+  geom_smooth(method = "glm", col = "blue",method.args = list(family = "binomial")) +
+  labs(y = "Probability of Crohn Disease")
+plot_blm_1
+```
+
+Binomial regression model 2: the risk on Ulcerative Colitis based on fecalcal value
+
+```{r}
+blm_fecalcal_2 <- glm(Study.Group ~ fecalcal, data=diversity_df_subset_UC_nonIBD, family="binomial" )
+summary(blm_fecalcal_2)
+```
+
+Visualisation of binomial regression model 1: the risk on Crohn Disease based on fecalcal value
+
+```{r}
+plot_blm_2<- ggplot(diversity_df_subset_UC_nonIBD, aes(x = fecalcal, y = Study.Group)) +
+  geom_point() +
+  geom_smooth(method = "glm", col = "blue",method.args = list(family = "binomial")) + labs(y = "Probability of Ulcerative Colitis")
+plot_blm_2
+```
+
